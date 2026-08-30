@@ -1,6 +1,9 @@
 package main
 
 import (
+	"gopkg.in/yaml.v3"
+	"strings"
+	"path/filepath"
 	"bytes"
 	"fmt"
 	"io"
@@ -10,10 +13,31 @@ import (
 	"time"
 )
 
+func loadYaml(path string) ([]byte, error) {
+
+	ext := strings.ToLower(filepath.Ext(path));
+	if ext != ".yaml" && ext != ".yml" {
+		return nil,fmt.Errorf("invalid file extension %q: must be .yaml or .yml", ext);
+	}
+
+	content, err := os.ReadFile(path);
+	
+	if err!=nil {
+		return nil, fmt.Errorf("failed to read file: %w",err);
+	}
+
+	var node yaml.Node;
+	if err:= yaml.Unmarshal(content, &node); err!=nil {
+		return nil, fmt.Errorf("invalid YAML content in %s: %w",path, err);
+	}
+
+	return content, nil;
+}
+
 func main() {
-	content, err := os.ReadFile("./test.yaml")
-	if err != nil {
-		log.Fatalf("error: %v", err)
+	content, err := loadYaml("./test.yaml");
+	if err!=nil {
+		log.Fatalf("error: %v", err);
 	}
 
 	endpoint := "http://localhost:8080/yaml"
