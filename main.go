@@ -1,32 +1,48 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log"
-	"gopkg.in/yaml.v3"
+	"net/http"
 	"os"
+	"time"
 )
 
 func main() {
-	content, err := os.ReadFile("./test.yaml");
-	if err!=nil { 
-		log.Fatalf("error:%v",err);
+	content, err := os.ReadFile("./test.yaml")
+	if err != nil {
+		log.Fatalf("error: %v", err)
 	}
 
-	parsedData := make(map[string] any);
-	
+	endpoint := "http://localhost:8080/yaml"
 
-	err = yaml.Unmarshal([]byte(content), &parsedData);
+	body := bytes.NewReader(content)
 
-	fmt.Printf("ParsedData: %v\n",parsedData);
-
-	if err!=nil {
-		log.Fatalf("error: %v",err);
+	req, err := http.NewRequest(http.MethodPost, endpoint, body)
+	if err != nil {
+		log.Fatalf("error: %v", err)
 	}
 
-	for k,v := range parsedData {
-		fmt.Printf("(k:%s) (v:%v)\n",k,v);	
+	req.Header.Set("Content-Type", "application/yaml")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatalf("post: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		log.Fatalf("bad status: %s: %s", resp.Status, string(msg))
 	}
 
+	if _, err := io.Copy(io.Discard, resp.Body); err != nil {
+		log.Printf("drain: %v", err)
+	}
 
+	fmt.Printf("POST ok: %s\n", resp.Status)
 }
